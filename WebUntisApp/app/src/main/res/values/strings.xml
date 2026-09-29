@@ -1,3 +1,26 @@
 <resources>
     <string name="app_name">WebUntis App</string>
+
+    <!-- Tab titles -->
+    <string name="tab_timetable">Timetable</string>
+    <string name="tab_homework">Homework</string>
+    <string name="tab_absences">Absences</string>
+
+    <!-- Empty state messages -->
+    <string name="no_timetable_data">No timetable data available</string>
+    <string name="no_homework_data">No homework data available</string>
+    <string name="no_absence_data">No absence data available</string>
+    <string name="unknown_error">Unknown error occurred</string>
+
+    <!-- Toolbar -->
+    <string name="toolbar_title">WebUntis App</string>
+    <string name="toolbar_subtitle">Untis Calendar & Schedule</string>
+
+    <!-- Token input -->
+    <string name="token_hint">Enter your API token</string>
+    <string name="token_label">WebUntis API Token</string>
+    <string name="token_saved">Token saved</string>
+
+    <!-- Loading -->
+    <string name="loading">Loading...</string>
 </resources>

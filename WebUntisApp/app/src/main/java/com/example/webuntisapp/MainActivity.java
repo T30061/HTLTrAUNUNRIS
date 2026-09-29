@@ -1,164 +1,141 @@
 package com.example.webuntisapp;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
+import android.preference.PreferenceManager;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import com.example.webuntisapp.model.AbsenceResponse;
-import com.example.webuntisapp.model.HomeworkResponse;
-import com.example.webuntisapp.model.TimetableResponse;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.WindowCompat;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.viewpager2.adapter.FragmentStateAdapter;
+import androidx.viewpager2.widget.ViewPager2;
+
+import com.example.webuntisapp.ui.absence.AbsenceFragment;
+import com.example.webuntisapp.ui.homework.HomeworkFragment;
+import com.example.webuntisapp.ui.timetable.TimetableFragment;
+import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.tabs.TabLayoutMediator;
 
 /**
  * Main activity of the WebUntis app.
- * Provides a simple UI to fetch timetable, homework, and absence data from the WebUntis API.
+ * Provides a tabbed interface to view timetable, homework, and absence data.
  */
 public class MainActivity extends AppCompatActivity {
 
     private EditText editTextToken;
-    private Button buttonTimetable;
-    private Button buttonHomework;
-    private Button buttonAbsences;
-    private TextView textViewResult;
+    private ViewPager2 viewPager;
+    private TabLayout tabLayout;
+    private SharedPreferences sharedPreferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Enable edge-to-edge display
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
         setContentView(R.layout.activity_main);
+
+        // Initialize shared preferences for storing token
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
         // Initialize views
         editTextToken = findViewById(R.id.editTextToken);
-        buttonTimetable = findViewById(R.id.buttonTimetable);
-        buttonHomework = findViewById(R.id.buttonHomework);
-        buttonAbsences = findViewById(R.id.buttonAbsences);
-        textViewResult = findViewById(R.id.textViewResult);
+        viewPager = findViewById(R.id.viewPager);
+        tabLayout = findViewById(R.id.tabLayout);
+        Toolbar toolbar = findViewById(R.id.toolbar);
 
-        // Set up button click listeners
-        buttonTimetable.setOnClickListener(v -> loadTimetable());
-        buttonHomework.setOnClickListener(v -> loadHomework());
-        buttonAbsences.setOnClickListener(v -> loadAbsences());
-    }
-
-    private void loadTimetable() {
-        String token = editTextToken.getText().toString().trim();
-        if (token.isEmpty()) {
-            textViewResult.setText("Please enter your API token");
-            return;
+        // Set up toolbar
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
         }
 
-        // Show loading state
-        textViewResult.setText("Loading timetable...");
+        // Set up ViewPager with adapter
+        viewPager.setAdapter(new ScreenSlidePagerAdapter(this));
 
-        // Make API call
-        RetrofitClient.getInstance().getApiService()
-                .getTimetable("Bearer " + token, "2026-09-01", "2026-09-30")
-                .enqueue(new Callback<TimetableResponse>() {
-                    @Override
-                    public void onResponse(Call<TimetableResponse> call, Response<TimetableResponse> response) {
-                        if (response.isSuccessful() && response.body() != null) {
-                            TimetableResponse timetableResponse = response.body();
-                            StringBuilder sb = new StringBuilder();
-                            sb.append("Timetable:\n");
-                            for (TimetableResponse.TimetableEntry entry : timetableResponse.getEntries()) {
-                                sb.append("Subject: ").append(entry.getSubject()).append("\n");
-                                sb.append("Teacher: ").append(entry.getTeacher()).append("\n");
-                                sb.append("Room: ").append(entry.getRoom()).append("\n");
-                                sb.append("Time: ").append(entry.getStartTime()).append(" - ").append(entry.getEndTime()).append("\n\n");
-                            }
-                            textViewResult.setText(sb.toString());
-                        } else {
-                            textViewResult.setText("Failed to load timetable: " + response.message());
-                        }
+        // Connect TabLayout with ViewPager2
+        new TabLayoutMediator(tabLayout, viewPager,
+                (tab, position) -> {
+                    switch (position) {
+                        case 0:
+                            tab.setText(R.string.tab_timetable);
+                            break;
+                        case 1:
+                            tab.setText(R.string.tab_homework);
+                            break;
+                        case 2:
+                            tab.setText(R.string.tab_absences);
+                            break;
                     }
+                }).attach();
 
-                    @Override
-                    public void onFailure(Call<TimetableResponse> call, Throwable t) {
-                        textViewResult.setText("Error: " + t.getMessage());
-                    }
-                });
-    }
-
-    private void loadHomework() {
-        String token = editTextToken.getText().toString().trim();
-        if (token.isEmpty()) {
-            textViewResult.setText("Please enter your API token");
-            return;
+        // Load saved token if available
+        String savedToken = sharedPreferences.getString("auth_token", "");
+        if (!savedToken.isEmpty()) {
+            editTextToken.setText(savedToken);
         }
 
-        // Show loading state
-        textViewResult.setText("Loading homework...");
+        // Set up token save on focus loss or enter key
+        editTextToken.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                saveToken();
+            }
+        });
 
-        // Make API call
-        RetrofitClient.getInstance().getApiService()
-                .getHomework("Bearer " + token, "2026-09-29")
-                .enqueue(new Callback<HomeworkResponse>() {
-                    @Override
-                    public void onResponse(Call<HomeworkResponse> call, Response<HomeworkResponse> response) {
-                        if (response.isSuccessful() && response.body() != null) {
-                            HomeworkResponse homeworkResponse = response.body();
-                            StringBuilder sb = new StringBuilder();
-                            sb.append("Homework:\n");
-                            for (HomeworkResponse.HomeworkEntry entry : homeworkResponse.getEntries()) {
-                                sb.append("Subject: ").append(entry.getSubject()).append("\n");
-                                sb.append("Title: ").append(entry.getTitle()).append("\n");
-                                sb.append("Description: ").append(entry.getDescription()).append("\n");
-                                sb.append("Due: ").append(entry.getDueDate()).append("\n\n");
-                            }
-                            textViewResult.setText(sb.toString());
-                        } else {
-                            textViewResult.setText("Failed to load homework: " + response.message());
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(Call<HomeworkResponse> call, Throwable t) {
-                        textViewResult.setText("Error: " + t.getMessage());
-                    }
-                });
+        editTextToken.setOnEditorActionListener((v, actionId, event) -> {
+            saveToken();
+            return true;
+        });
     }
 
-    private void loadAbsences() {
+    /**
+     * Save the API token to SharedPreferences.
+     */
+    private void saveToken() {
         String token = editTextToken.getText().toString().trim();
-        if (token.isEmpty()) {
-            textViewResult.setText("Please enter your API token");
-            return;
+        if (!token.isEmpty()) {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putString("auth_token", token);
+            editor.apply();
+            Toast.makeText(this, "Token saved", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Adapter for the ViewPager2 to manage fragments.
+     */
+    private class ScreenSlidePagerAdapter extends FragmentStateAdapter {
+        public ScreenSlidePagerAdapter(@NonNull FragmentActivity fragmentActivity) {
+            super(fragmentActivity);
         }
 
-        // Show loading state
-        textViewResult.setText("Loading absences...");
+        @NonNull
+        @Override
+        public Fragment createFragment(int position) {
+            switch (position) {
+                case 0:
+                    return new TimetableFragment();
+                case 1:
+                    return new HomeworkFragment();
+                case 2:
+                    return new AbsenceFragment();
+                default:
+                    return new TimetableFragment();
+            }
+        }
 
-        // Make API call
-        RetrofitClient.getInstance().getApiService()
-                .getAbsences("Bearer " + token, "2026-09-01", "2026-09-30")
-                .enqueue(new Callback<AbsenceResponse>() {
-                    @Override
-                    public void onResponse(Call<AbsenceResponse> call, Response<AbsenceResponse> response) {
-                        if (response.isSuccessful() && response.body() != null) {
-                            AbsenceResponse absenceResponse = response.body();
-                            StringBuilder sb = new StringBuilder();
-                            sb.append("Absences:\n");
-                            for (AbsenceResponse.AbsenceEntry entry : absenceResponse.getEntries()) {
-                                sb.append("Type: ").append(entry.getType()).append("\n");
-                                sb.append("Date: ").append(entry.getDate()).append("\n");
-                                sb.append("Period: ").append(entry.getPeriod()).append("\n");
-                                sb.append("Reason: ").append(entry.getReason()).append("\n\n");
-                            }
-                            textViewResult.setText(sb.toString());
-                        } else {
-                            textViewResult.setText("Failed to load absences: " + response.message());
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(Call<AbsenceResponse> call, Throwable t) {
-                        textViewResult.setText("Error: " + t.getMessage());
-                    }
-                });
+        @Override
+        public int getItemCount() {
+            return 3; // Three tabs: Timetable, Homework, Absences
+        }
     }
 }
