@@ -1,0 +1,1 @@
+Hallo Cloude du sollst mir was in die Richtung WebUntis machen mit kallender usw. Wo man fehleinträge Hausübung Stundenplan usw siehst, am besten auch mit API von WebUntis. Es soll eine Android App werden also bitte in Android Studio
